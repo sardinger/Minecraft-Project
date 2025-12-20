@@ -3,9 +3,11 @@ from dotenv import load_dotenv
 import os
 from PIL import Image
 import requests
+import anthropic
+import json
 
 
-def call_api():
+def call_starter():
     url = "http://localhost:5000/bot"  # TODO: this will have to change once deployed
     try:
         response = requests.get(url)  # Make the GET request
@@ -19,6 +21,43 @@ def call_api():
         st.error(f"An error occurred: {e}")
 
 
+def call_analyzer(img):
+    load_dotenv()
+    claude_key = os.getenv("ANTHROPIC_API_KEY")
+
+    client = anthropic.Anthropic()
+
+    with open("prompt.txt", "r", encoding="utf-8") as f:
+        prompt = f.read()
+
+    image_data = client.beta.files.upload(file=(img.name, img.getvalue(), img.type))
+    print("Image id: ", image_data.id)
+
+    message = client.beta.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=1024,
+        betas=["files-api-2025-04-14"],
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {"type": "file", "file_id": image_data.id},
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ],
+    )
+
+    text = message.content[0].text
+    json_str = text.replace("```json", "").replace("```", "").strip()
+    # TODO: load str into json object
+
+    return json_str
+
+
 def main():
     header = st.container()
 
@@ -29,7 +68,7 @@ def main():
         st.session_state["api_data"] = None
 
     if st.button("Start Bot"):
-        call_api()
+        call_starter()
 
     if st.session_state["api_data"]:
         st.subheader("Response:")
@@ -39,6 +78,10 @@ def main():
     if uploaded_img is not None:
         img = Image.open(uploaded_img)
         st.image(img)
+
+        if st.button("Analyze Image"):
+            json_str = call_analyzer(uploaded_img)
+            st.code(json_str, language="json")
 
 
 if __name__ == "__main__":
