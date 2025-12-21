@@ -36,7 +36,7 @@ def call_analyzer(img):
     message = client.beta.messages.create(
         model="claude-sonnet-4-5",
         max_tokens=1024,
-        betas=["files-api-2025-04-14"],
+        betas=["files-api-2025-04-14", "structured-outputs-2025-11-13"],
         messages=[
             {
                 "role": "user",
@@ -49,13 +49,39 @@ def call_analyzer(img):
                 ],
             }
         ],
+        output_format={
+            "type": "json_schema",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "schematic_name": {"type": "string"},
+                    "blocks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "block_type": {"type": "string"},
+                                "x": {"type": "integer"},
+                                "y": {"type": "integer"},
+                                "z": {"type": "integer"},
+                            },
+                            "required": ["block_type", "x", "y", "z"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+                "required": ["schematic_name", "blocks"],
+                "additionalProperties": False,
+            },
+        },
     )
 
-    text = message.content[0].text
-    json_str = text.replace("```json", "").replace("```", "").strip()
-    # TODO: load str into json object
-
-    return json_str
+    json_str = message.content[0].text.strip()
+    if not json_str.endswith("}"):
+        return json_str
+    else:
+        data = json.loads(json_str)
+        return data
 
 
 def main():
@@ -80,8 +106,8 @@ def main():
         st.image(img)
 
         if st.button("Analyze Image"):
-            json_str = call_analyzer(uploaded_img)
-            st.code(json_str, language="json")
+            data = call_analyzer(uploaded_img)
+            st.code(data, language="json")
 
 
 if __name__ == "__main__":
