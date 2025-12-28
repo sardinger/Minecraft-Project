@@ -2,6 +2,7 @@ import streamlit as st
 from dotenv import load_dotenv
 import os
 from PIL import Image
+from io import BytesIO
 import requests
 import anthropic
 import json
@@ -21,7 +22,23 @@ def call_starter():
         st.error(f"An error occurred: {e}")
 
 
-def call_analyzer(img):
+def call_build():
+    url = "http://localhost:5000/build"
+
+    data = st.session_state.get("build_data")
+    try:
+        response = requests.post(url, json=data)  # Make the POST request
+        if response.status_code == 200:
+            data = response.json()
+            st.session_state["api_data"] = data  # Store the result in session state
+            st.success("Build call successful!")
+        else:
+            st.error(f"Build call failed with status code: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+
+
+def call_analyzer(img, img_bytes):
     load_dotenv()
     claude_key = os.getenv("ANTHROPIC_API_KEY")
 
@@ -30,7 +47,9 @@ def call_analyzer(img):
     with open("prompt.txt", "r", encoding="utf-8") as f:
         prompt = f.read()
 
-    image_data = client.beta.files.upload(file=(img.name, img.getvalue(), img.type))
+    image_data = client.beta.files.upload(
+        file=(img.name, img_bytes.getvalue(), img.type)
+    )
     print("Image id: ", image_data.id)
 
     message = client.beta.messages.create(
@@ -84,6 +103,16 @@ def call_analyzer(img):
         return data
 
 
+def resize_img(img):
+    w, h = img.size
+    longer_edge = w if w > h else h
+    if longer_edge > 1568:
+        max_size = (1568, 1568)
+        img.thumbnail(max_size, Image.LANCZOS)
+
+    return img
+
+
 def main():
     header = st.container()
 
@@ -100,14 +129,29 @@ def main():
         st.subheader("Response:")
         st.json(st.session_state["api_data"])
 
+    if "build_data" not in st.session_state:
+        st.session_state.build_data = None
+
     uploaded_img = st.file_uploader("Choose an image")
     if uploaded_img is not None:
         img = Image.open(uploaded_img)
+        img = resize_img(img)
         st.image(img)
+        print(img.size)
 
         if st.button("Analyze Image"):
-            data = call_analyzer(uploaded_img)
-            st.code(data, language="json")
+            # Convert img to bytes
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            buf.seek(0)
+            img_bytes = buf
+
+            st.session_state.build_data = call_analyzer(uploaded_img, img_bytes)
+    if st.session_state.build_data is not None:
+        st.code(st.session_state.build_data, language="json")
+
+        if st.button("BUILD"):
+            call_build()
 
 
 if __name__ == "__main__":
