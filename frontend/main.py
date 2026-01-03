@@ -54,7 +54,7 @@ def call_analyzer(img, img_bytes):
 
     message = client.beta.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=1024,
+        max_tokens=2048,
         betas=["files-api-2025-04-14", "structured-outputs-2025-11-13"],
         messages=[
             {
@@ -142,7 +142,7 @@ def main():
         if st.button("Analyze Image"):
             # Convert img to bytes
             buf = BytesIO()
-            img.save(buf, format="PNG")
+            img.save(buf, format=img.format)
             buf.seek(0)
             img_bytes = buf
 

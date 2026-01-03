@@ -20,7 +20,6 @@ class BuilderBot:
         s.close()
 
         try:
-            print(ip)
             host = ip
             port = 54569
             username = "R2D2"  # Replace with the desired bot username
