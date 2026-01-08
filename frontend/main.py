@@ -1,11 +1,13 @@
 import streamlit as st
 from dotenv import load_dotenv
-import os
 from PIL import Image
 from io import BytesIO
+from transformers import pipeline
+import os
 import requests
 import anthropic
 import json
+import numpy as np
 
 
 def call_starter():
@@ -39,7 +41,7 @@ def call_build():
         st.error(f"An error occurred: {e}")
 
 
-def call_analyzer(img, img_bytes):
+def call_analyzer(img, img_bytes, depth_str=None):
     load_dotenv()
     claude_key = os.getenv("ANTHROPIC_API_KEY")
 
@@ -48,6 +50,17 @@ def call_analyzer(img, img_bytes):
     with open("prompt.txt", "r", encoding="utf-8") as f:
         prompt = f.read()
 
+    if depth_str:
+        prompt = f"""{prompt}
+        ---
+        Depth information (16x16 grid, normalized: 0 = far, 1 = near):
+
+        {depth_str}
+
+        Use this depth grid to reason about vertical structure, height changes,
+        and relative block placement.
+        """
+
     image_data = client.beta.files.upload(
         file=(img.name, img_bytes.getvalue(), img.type)
     )
@@ -55,7 +68,7 @@ def call_analyzer(img, img_bytes):
 
     message = client.beta.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=5000,
+        max_tokens=2000,
         betas=["files-api-2025-04-14", "structured-outputs-2025-11-13"],
         messages=[
             {
@@ -114,7 +127,27 @@ def resize_img(img):
     return img
 
 
+def normalize_depth(grid):
+    grid = grid.astype("float32")
+
+    min = grid.min()
+    max = grid.max()
+
+    if max > min:
+        return (grid - min) / (max - min)
+    else:
+        return np.zeros_like(grid)
+
+
+@st.cache_resource
+def load_depth_model():
+    return pipeline(
+        task="depth-estimation", model="depth-anything/Depth-Anything-V2-Small-hf"
+    )
+
+
 def main():
+    model = load_depth_model()
     header = st.container()
 
     with header:
@@ -133,10 +166,29 @@ def main():
     if "build_data" not in st.session_state:
         st.session_state.build_data = None
 
+    use_depth = st.toggle("Use Depth Model")
+    depth_str = None
+
     uploaded_img = st.file_uploader("Choose an image")
     if uploaded_img is not None:
         img = Image.open(uploaded_img)
         img = resize_img(img)
+
+        if use_depth:
+            depth = model(img)["depth"]
+            depth = depth.resize(
+                (16, 16), Image.BILINEAR
+            )  # TODO: mess with low-res grid size (16x16 currently)
+            depth_np = np.array(depth)
+            depth_grid = normalize_depth(depth_np)
+            depth_list = depth_grid.round(3).tolist()
+            depth_str = json.dumps(depth_list)
+
+            # Display depth
+            st.subheader("Depth Grid (16×16, normalized)")
+
+            st.text("\n".join(" ".join(f"{v:0.2f}" for v in row) for row in depth_grid))
+
         st.image(img)
         print(img.size)
 
@@ -147,7 +199,9 @@ def main():
             buf.seek(0)
             img_bytes = buf
 
-            st.session_state.build_data = call_analyzer(uploaded_img, img_bytes)
+            st.session_state.build_data = call_analyzer(
+                uploaded_img, img_bytes, depth_str
+            )
     if st.session_state.build_data is not None:
         st.code(st.session_state.build_data, language="json")
 
