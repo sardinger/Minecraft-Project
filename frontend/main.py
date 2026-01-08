@@ -24,7 +24,7 @@ def call_starter():
         st.error(f"An error occurred: {e}")
 
 
-def call_build():
+def call_build(button=False):
     url = "http://localhost:5000/build"
 
     data = st.session_state.get("build_data")
@@ -34,7 +34,8 @@ def call_build():
             data = response.json()
             st.session_state["api_data"] = data  # Store the result in session state
             num_blocks = data.get("blocks")
-            st.success(f"Build call successful! Blocks placed: {num_blocks}")
+            if button:
+                st.success(f"Build call successful! Blocks placed: {num_blocks}")
         else:
             st.error(f"Build call failed with status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
@@ -66,10 +67,13 @@ def call_analyzer(img, img_bytes, depth_str=None):
     )
     print("Image id: ", image_data.id)
 
-    message = client.beta.messages.create(
+    message = ""
+    buffer = ""
+
+    with client.beta.messages.stream(
         model="claude-sonnet-4-5",
-        max_tokens=20000,
-        betas=["files-api-2025-04-14", "structured-outputs-2025-11-13"],
+        max_tokens=30000,
+        betas=["files-api-2025-04-14"],
         messages=[
             {
                 "role": "user",
@@ -82,39 +86,64 @@ def call_analyzer(img, img_bytes, depth_str=None):
                 ],
             }
         ],
-        output_format={
-            "type": "json_schema",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "schematic_name": {"type": "string"},
-                    "blocks": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "block_type": {"type": "string"},
-                                "x": {"type": "integer"},
-                                "y": {"type": "integer"},
-                                "z": {"type": "integer"},
-                            },
-                            "required": ["block_type", "x", "y", "z"],
-                            "additionalProperties": False,
-                        },
-                    },
-                },
-                "required": ["schematic_name", "blocks"],
-                "additionalProperties": False,
-            },
-        },
-    )
+    ) as stream:
+        for event in stream:
+            if event.type == "content_block_delta":
+                delta = event.delta
 
-    json_str = message.content[0].text.strip()
-    if not json_str.endswith("}"):
-        return json_str
-    else:
+                if delta.type == "text_delta":
+                    text = delta.text
+                    message += text
+                    buffer += text
+
+                    # print(f"Message counter: {text}")
+                    while True:
+                        # Find potential object boundaries
+                        start = buffer.find('{"block_type"')
+                        if start == -1:
+                            break
+
+                        # Look for the closing brace
+                        end = buffer.find("}", start)
+                        if end == -1:
+                            break  # Not complete yet
+
+                        # Extract and try to parse
+                        potential_obj = buffer[start : end + 1]
+                        try:
+                            block_obj = json.loads(potential_obj)
+                            # Valid block object found
+                            if all(
+                                k in block_obj for k in ["block_type", "x", "y", "z"]
+                            ):
+                                yield {"type": "block", "data": block_obj}
+
+                            # Remove processed part from buffer
+                            buffer = buffer[end + 1 :]
+                        except json.JSONDecodeError:
+                            # Not valid JSON, move past this opening brace
+                            buffer = buffer[start + 1 :]
+
+            elif event.type == "content_block_stop":
+                break  # message is done coming in
+
+    # final_message = stream.get_final_message()
+    json_str = message.strip()
+
+    # clean markdown response
+    if json_str.startswith("```json"):
+        json_str = json_str[7:]
+    if json_str.startswith("```"):
+        json_str = json_str[3:]
+    if json_str.endswith("```"):
+        json_str = json_str[:-3]
+
+    try:
         data = json.loads(json_str)
-        return data
+        yield {"type": "complete", "data": data}
+    except json.JSONDecodeError as e:
+        print(f"Final parse error: {e}")
+        yield {"type": "error", "data": json_str}
 
 
 def resize_img(img):
@@ -199,14 +228,42 @@ def main():
             buf.seek(0)
             img_bytes = buf
 
-            st.session_state.build_data = call_analyzer(
-                uploaded_img, img_bytes, depth_str
-            )
+            blocks_built = []
+            status_placeholder = st.empty()
+            error_placeholder = st.empty()
+
+            for result in call_analyzer(uploaded_img, img_bytes, depth_str):
+                if result["type"] == "block":
+                    block = result["data"]
+                    blocks_built.append(block)
+
+                    # Build incrementally
+                    build_payload = {
+                        "schematic_name": "streaming_build",
+                        "blocks": blocks_built,
+                    }
+                    st.session_state.build_data = build_payload
+
+                    # Call build endpoint
+                    call_build()
+
+                    status_placeholder.text(
+                        f"Built {len(blocks_built)} blocks so far..."
+                    )
+
+                elif result["type"] == "complete":
+                    st.session_state.build_data = result["data"]
+                    status_placeholder.success(
+                        f"Complete! Total blocks: {len(result['data'].get('blocks', []))}"
+                    )
+
+                elif result["type"] == "error":
+                    error_placeholder.error("Parsing error occurred")
     if st.session_state.build_data is not None:
         st.code(st.session_state.build_data, language="json")
 
         if st.button("BUILD"):
-            call_build()
+            call_build(True)
 
 
 if __name__ == "__main__":
