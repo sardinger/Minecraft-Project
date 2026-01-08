@@ -31,7 +31,8 @@ def call_build():
         if response.status_code == 200:
             data = response.json()
             st.session_state["api_data"] = data  # Store the result in session state
-            st.success("Build call successful!")
+            num_blocks = data.get("blocks")
+            st.success(f"Build call successful! Blocks placed: {num_blocks}")
         else:
             st.error(f"Build call failed with status code: {response.status_code}")
     except requests.exceptions.RequestException as e:
@@ -54,7 +55,7 @@ def call_analyzer(img, img_bytes):
 
     message = client.beta.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=2048,
+        max_tokens=5000,
         betas=["files-api-2025-04-14", "structured-outputs-2025-11-13"],
         messages=[
             {

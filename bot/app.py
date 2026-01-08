@@ -58,4 +58,5 @@ def build():
             data = json.load(f)
     # TODO: Make build_from_json a function in bot class so I can call chat
     build_from_json(BOT_INSTANCE.bot, data)
-    return jsonify({"status": "built"})
+    num_blocks = len(data.get("blocks", []))
+    return jsonify({"status": "built", "blocks": num_blocks})
