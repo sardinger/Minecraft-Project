@@ -43,9 +43,6 @@ class BuilderBot:
             """
             self.bot.chat(f"/tp AustinMinty")  # TODO: don't hard code this
 
-            # TODO: give the bot context
-            # self.codeGen = MinecraftCodeGenerator()
-
         @On(self.bot, "chat")
         def on_chat(this, sender, message, *args):
             """

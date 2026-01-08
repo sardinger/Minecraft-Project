@@ -51,7 +51,7 @@ def build():
 
     data = request.get_json()
 
-    # TODO: Build the triangle schematic if json is not valid
+    # Build the Pisa schematic if json is not valid
     data = complete_schematic(data)
     if data is None:
         with open("../schematics/pisa-2.json", "r") as f:

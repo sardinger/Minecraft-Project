@@ -68,7 +68,7 @@ def call_analyzer(img, img_bytes, depth_str=None):
 
     message = client.beta.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=2000,
+        max_tokens=20000,
         betas=["files-api-2025-04-14", "structured-outputs-2025-11-13"],
         messages=[
             {
