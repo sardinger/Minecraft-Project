@@ -4,3 +4,4 @@ streamlit
 javascript
 flask
 transformers
+torch
