@@ -8,6 +8,10 @@ import requests
 import anthropic
 import json
 import numpy as np
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
 
 
 def call_starter():
@@ -48,7 +52,8 @@ def call_analyzer(img, img_bytes, depth_str=None):
 
     client = anthropic.Anthropic()
 
-    with open("prompt.txt", "r", encoding="utf-8") as f:
+    prompt_path = BASE_DIR / "prompt.txt"
+    with open(prompt_path, "r", encoding="utf-8") as f:
         prompt = f.read()
 
     if depth_str:
