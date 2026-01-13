@@ -21,7 +21,7 @@ class BuilderBot:
 
         try:
             host = ip
-            port = 54569
+            port = 54569  # TODO: this should be  in an env
             username = "R2D2"  # Replace with the desired bot username
             self.bot = mineflayer.createBot(
                 {

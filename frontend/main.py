@@ -65,14 +65,13 @@ def call_analyzer(img, img_bytes, depth_str=None):
     image_data = client.beta.files.upload(
         file=(img.name, img_bytes.getvalue(), img.type)
     )
-    print("Image id: ", image_data.id)
 
     message = ""
     buffer = ""
 
     with client.beta.messages.stream(
         model="claude-sonnet-4-5",
-        max_tokens=30000,
+        max_tokens=10000,
         betas=["files-api-2025-04-14"],
         messages=[
             {
@@ -96,7 +95,6 @@ def call_analyzer(img, img_bytes, depth_str=None):
                     message += text
                     buffer += text
 
-                    # print(f"Message counter: {text}")
                     while True:
                         # Find potential object boundaries
                         start = buffer.find('{"block_type"')
@@ -127,7 +125,6 @@ def call_analyzer(img, img_bytes, depth_str=None):
             elif event.type == "content_block_stop":
                 break  # message is done coming in
 
-    # final_message = stream.get_final_message()
     json_str = message.strip()
 
     # clean markdown response
@@ -180,7 +177,7 @@ def main():
     header = st.container()
 
     with header:
-        st.title("Minecraft Project Image Upload")
+        st.title("Minecraft Project v2")
 
     if "api_data" not in st.session_state:
         st.session_state["api_data"] = None
@@ -219,7 +216,6 @@ def main():
             st.text("\n".join(" ".join(f"{v:0.2f}" for v in row) for row in depth_grid))
 
         st.image(img)
-        print(img.size)
 
         if st.button("Analyze Image"):
             # Convert img to bytes
@@ -258,7 +254,9 @@ def main():
                     )
 
                 elif result["type"] == "error":
-                    error_placeholder.error("Parsing error occurred")
+                    error_placeholder.error(
+                        "Parsing error occurred. Build probably incomplete"
+                    )
     if st.session_state.build_data is not None:
         st.code(st.session_state.build_data, language="json")
 
