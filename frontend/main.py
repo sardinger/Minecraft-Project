@@ -51,6 +51,7 @@ def call_build(button=False):
 def call_analyzer(img, img_bytes, depth_str=None):
     load_dotenv()
     claude_key = os.getenv("ANTHROPIC_API_KEY")
+    tokens = int(os.getenv("TOKENS"))
 
     client = anthropic.Anthropic()
 
@@ -78,7 +79,7 @@ def call_analyzer(img, img_bytes, depth_str=None):
 
     with client.beta.messages.stream(
         model="claude-sonnet-4-5",
-        max_tokens=10000,
+        max_tokens=tokens,
         betas=["files-api-2025-04-14"],
         messages=[
             {

@@ -61,3 +61,7 @@ def build():
     build_from_json(BOT_INSTANCE.bot, data)
     num_blocks = len(data.get("blocks", []))
     return jsonify({"status": "built", "blocks": num_blocks})
+
+
+if __name__ == "__main__":
+    app.run()
