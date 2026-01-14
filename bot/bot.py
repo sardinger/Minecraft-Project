@@ -10,7 +10,7 @@ mineflayer = require("mineflayer")
 
 
 class BuilderBot:
-    def __init__(self):
+    def __init__(self, username):
         """
         Initializes a bot in Minecraft
         """
@@ -21,15 +21,17 @@ class BuilderBot:
 
         try:
             host = ip
-            port = 54569  # TODO: this should be  in an env
-            username = "R2D2"  # Replace with the desired bot username
+            port = 54569
+            name = "R2D2"  # Replace with the desired bot username
             self.bot = mineflayer.createBot(
                 {
                     "host": host,
                     "port": port,
-                    "username": username,
+                    "username": name,
                 }
             )
+
+            self.username = username
             self.setup_listeners()
         except Exception as e:
             print("Failed to start bot")
@@ -41,7 +43,7 @@ class BuilderBot:
             """
             Spawns the bot next to you (need player coords)
             """
-            self.bot.chat(f"/tp AustinMinty")  # TODO: don't hard code this
+            self.bot.chat(f"/tp {self.username}")
 
         @On(self.bot, "chat")
         def on_chat(this, sender, message, *args):
@@ -56,7 +58,7 @@ class BuilderBot:
             message = str(message)
 
             if message.lower() == "come":
-                self.bot.chat(f"/tp AustinMinty")
+                self.bot.chat(f"/tp {self.username}")
 
         @On(self.bot, "end")
         def on_end(*args):

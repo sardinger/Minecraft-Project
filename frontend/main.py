@@ -14,10 +14,12 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 
 
-def call_starter():
+def call_starter(username):
     url = "http://localhost:5000/bot"  # TODO: this will have to change once deployed
+
+    params = {"username": username}
     try:
-        response = requests.get(url)  # Make the GET request
+        response = requests.get(url, params=params)  # Make the GET request
         if response.status_code == 200:
             data = response.json()
             st.session_state["api_data"] = data  # Store the result in session state
@@ -180,6 +182,7 @@ def load_depth_model():
 def main():
     model = load_depth_model()
     header = st.container()
+    username = st.text_input("Enter Minecraft username:")
 
     with header:
         st.title("Minecraft Project v2")
@@ -187,8 +190,9 @@ def main():
     if "api_data" not in st.session_state:
         st.session_state["api_data"] = None
 
-    if st.button("Start Bot"):
-        call_starter()
+    if username:
+        if st.button("Start Bot"):
+            call_starter(username)
 
     if st.session_state["api_data"]:
         st.subheader("Response:")

@@ -36,9 +36,10 @@ def hello_world():
 @app.route("/bot")
 def bot():
     global BOT_INSTANCE
+    username = request.args.get("username")
 
     if BOT_INSTANCE is None:
-        BOT_INSTANCE = BuilderBot()
+        BOT_INSTANCE = BuilderBot(username)
 
         return jsonify({"status": "started"})
     return jsonify({"status": "already_running"})
