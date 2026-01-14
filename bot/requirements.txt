@@ -1,8 +1,4 @@
-anthropic
 dotenv
-streamlit
 javascript
 flask
-transformers
-torch
 gunicorn
