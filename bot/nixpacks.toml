@@ -7,8 +7,5 @@ cmds = [
   "npm install mineflayer"
 ]
 
-[phases.start]
-cmds = []
-
-[phases.run]
+[start]
 cmds = ["python app.py"]
