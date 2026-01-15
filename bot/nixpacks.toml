@@ -7,5 +7,9 @@ cmds = [
   "npm install mineflayer"
 ]
 
-[phases.start]
+[start]
 cmds = ["python app.py"]
+
+[variables]
+  NIXPACKS_PYTHON_VERSION = "3.11"
+  NODE_VERSION = "22"
