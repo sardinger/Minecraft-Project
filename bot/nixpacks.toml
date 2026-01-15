@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python311", "nodejs_22"]
+
+[phases.install]
+cmds = [
+  "pip install -r requirements.txt",
+  "npm install mineflayer"
+]
+
+[phases.start]
+cmds = ["python app.py"]
