@@ -2,3 +2,4 @@ dotenv
 javascript
 flask
 gunicorn
+pydantic
